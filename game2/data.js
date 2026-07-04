@@ -57,7 +57,9 @@ export const UI = {
     paused: 'Paused',
     done: 'Checked',
     ofLbl: 'of',
-    goLaptop: 'All products checked! Find the laptop 💻 in the study.'
+    goLaptop: 'All products checked! Find the laptop 💻 in the study.',
+    speedBonus: 'Speed bonus',
+    houseTime: 'House cleared in'
   },
   mt: {
     title: 'Ditektif tas-Sigurtà',
@@ -114,7 +116,9 @@ export const UI = {
     paused: 'Pawża',
     done: 'Iċċekkjati',
     ofLbl: 'minn',
-    goLaptop: 'Il-prodotti kollha ċċekkjati! Sib il-laptop 💻 fl-istudju.'
+    goLaptop: 'Il-prodotti kollha ċċekkjati! Sib il-laptop 💻 fl-istudju.',
+    speedBonus: 'Bonus tal-ħeffa',
+    houseTime: 'Id-dar lesta f’'
   }
 };
 

@@ -36,6 +36,8 @@
       oops: 'Oops!',
       newBadge: 'You earned a new badge!',
       ziggyHello: 'Hello! Tap a game to play!',
+      levelUp: 'Level up! Faster!',
+      streak: 'streak',
       /* hazard explanations */
       r_battery: 'A button battery! These are very dangerous if swallowed. Tell a grown-up right away!',
       r_smallparts: 'A broken toy! Small pieces can choke you. Give it to a grown-up.',
@@ -85,6 +87,8 @@
       oops: 'Ojj!',
       newBadge: 'Rebaħt badġ ġdida!',
       ziggyHello: 'Aħwa! Għafas fuq logħba biex tilgħab!',
+      levelUp: 'Livell ġdid! Aktar mgħaġġel!',
+      streak: 'streak',
       r_battery: 'Batterija tal-buttuna! Perikoluża ħafna jekk tinbela’. Għid lil adult minnufih!',
       r_smallparts: 'Ġugarell miksur! Biċċiet żgħar jistgħu jifgawk. Agħtih lil adult.',
       r_cord: 'Ħabel twil! Ħbula u spag jistgħu jitgeżwru ma’ għonqok. Ilgħab ’il bogħod minnhom.',
@@ -156,24 +160,52 @@
   var fx = document.getElementById('fx'), fctx = fx.getContext('2d'), parts = [];
   function sizeFx() { fx.width = innerWidth; fx.height = innerHeight; }
   sizeFx(); addEventListener('resize', sizeFx);
+  var COLORS = ['#ff5d73', '#ffde59', '#2eb872', '#4aa3ff', '#b06ef2'];
+  function runFx() {
+    if (!runFx.running) { runFx.running = true; requestAnimationFrame(stepFx); }
+  }
   function confetti(n) {
-    var colors = ['#ff5d73', '#ffde59', '#2eb872', '#4aa3ff', '#b06ef2'];
     for (var i = 0; i < n; i++) {
       parts.push({ x: Math.random() * fx.width, y: -20 - Math.random() * 120,
-        vy: 2 + Math.random() * 3, vx: (Math.random() - .5) * 2,
-        s: 6 + Math.random() * 8, c: colors[i % colors.length], r: Math.random() * Math.PI });
+        vy: 2 + Math.random() * 3, vx: (Math.random() - .5) * 2, g: 0,
+        s: 6 + Math.random() * 8, c: COLORS[i % COLORS.length], r: Math.random() * Math.PI, life: 999 });
     }
-    if (!confetti.running) { confetti.running = true; requestAnimationFrame(stepFx); }
+    runFx();
+  }
+  /* radial particle burst at a screen position — tap/catch feedback */
+  function burstAt(x, y, n) {
+    for (var i = 0; i < (n || 18); i++) {
+      var a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 5;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 0.25,
+        s: 5 + Math.random() * 7, c: COLORS[i % COLORS.length], r: Math.random() * Math.PI, life: 40 });
+    }
+    runFx();
   }
   function stepFx() {
     fctx.clearRect(0, 0, fx.width, fx.height);
-    parts = parts.filter(function (p) { return p.y < fx.height + 30; });
+    parts = parts.filter(function (p) { return p.y < fx.height + 30 && p.life > 0; });
     parts.forEach(function (p) {
-      p.y += p.vy; p.x += p.vx; p.r += .08;
+      p.y += p.vy; p.x += p.vx; p.vy += p.g; p.r += .08; p.life--;
       fctx.save(); fctx.translate(p.x, p.y); fctx.rotate(p.r);
+      fctx.globalAlpha = p.life < 12 ? p.life / 12 : 1;
       fctx.fillStyle = p.c; fctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s); fctx.restore();
     });
-    if (parts.length) requestAnimationFrame(stepFx); else confetti.running = false;
+    if (parts.length) requestAnimationFrame(stepFx); else runFx.running = false;
+  }
+  /* quick floating toast (level-ups etc.) */
+  function toastMsg(text) {
+    var el = document.getElementById('toast1');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast1';
+      document.getElementById('app').appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+  function centerOf(el) {
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
   /* ============================== UI HELPERS ============================== */
@@ -183,6 +215,7 @@
     screens.forEach(function (s) { $(s).classList.toggle('hidden', s !== id); });
     if (id === 'hub') renderHub();
     if (id !== 'catch') stopCatch();
+    if (id !== 'spot') clearTimeout(hintTimer);
   }
   function showCard(icon, title, text, btnLabel, onClose) {
     $('cardIcon').textContent = icon;
@@ -274,16 +307,39 @@
     }
   ];
 
-  var spotState = null;
+  var spotState = null, hintTimer = 0;
   function startSpot() {
     var scene = SCENES[spotSceneIdx % SCENES.length];
-    scene.items.forEach(function (i) { i._found = false; });
+    scene.items.forEach(function (i) {
+      i._found = false;
+      /* jitter positions a little each play so scenes stay fresh */
+      i._jx = Math.max(6, Math.min(94, i.x + (Math.random() - .5) * 6));
+      i._jy = Math.max(8, Math.min(93, i.y + (Math.random() - .5) * 5));
+    });
     spotState = { scene: scene, found: 0, wrong: 0,
       total: scene.items.filter(function (i) { return i.hazard; }).length };
     $('spotTitle').textContent = t('spotTitle');
     renderScene();
     show('spot');
     speak(t('spotTitle'));
+    armHint();
+  }
+  /* if the player is stuck for a while, wiggle one unfound hazard */
+  function armHint() {
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () {
+      if (!spotState || $('spot').classList.contains('hidden')) return;
+      var left = spotState.scene.items.filter(function (i) { return i.hazard && !i._found; });
+      if (left.length) {
+        var it = left[Math.floor(Math.random() * left.length)];
+        if (it._el) {
+          it._el.classList.add('hint');
+          tone(988, .1, 0, 'triangle', .07); tone(1175, .14, .12, 'triangle', .07);
+          setTimeout(function () { it._el && it._el.classList.remove('hint'); }, 2200);
+        }
+      }
+      armHint();
+    }, 9000);
   }
   function renderScene() {
     var sceneEl = $('scene');
@@ -302,9 +358,10 @@
       var el = document.createElement('button');
       el.className = 'item' + (it._found ? ' found' : '');
       el.innerHTML = '<span class="ring"></span>' + it.e;
-      el.style.left = it.x + '%'; el.style.top = it.y + '%';
+      el.style.left = (it._jx || it.x) + '%'; el.style.top = (it._jy || it.y) + '%';
       el.style.fontSize = (it.s * w / 100) + 'px';
       el.addEventListener('click', function () { tapItem(it, el); });
+      it._el = el;
       sceneEl.appendChild(el);
     });
     updateSpotProgress();
@@ -314,11 +371,14 @@
   }
   function tapItem(it, el) {
     if (it._found) return;
+    armHint();
     if (it.hazard) {
       it._found = true;
       el.classList.add('found');
       spotState.found++;
       sfx.good();
+      var c = centerOf(el);
+      burstAt(c.x, c.y, 22);
       updateSpotProgress();
       showCard('⚠️', t('wellDone'), t(it.hazard), spotState.found >= spotState.total ? t('ok') : t('next'), function () {
         if (spotState.found >= spotState.total) finishSpot();
@@ -363,7 +423,7 @@
   function startSort() {
     var safe = shuffle(SORT_POOL.filter(function (x) { return !x.hazard; })).slice(0, 5);
     var danger = shuffle(SORT_POOL.filter(function (x) { return x.hazard; })).slice(0, 5);
-    sortState = { queue: shuffle(safe.concat(danger)), idx: 0, correct: 0, busy: false };
+    sortState = { queue: shuffle(safe.concat(danger)), idx: 0, correct: 0, streak: 0, busy: false };
     $('sortTitle').textContent = t('sortTitle');
     $('binSafeLbl').textContent = t('binSafe');
     $('binDangerLbl').textContent = t('binDanger');
@@ -375,7 +435,8 @@
     if (sortState.idx >= sortState.queue.length) return finishSort();
     var it = sortState.queue[sortState.idx];
     $('convItem').innerHTML = it.e + '<span class="tag">' + t(it.n) + '</span>';
-    $('sortProgress').textContent = (sortState.idx + 1) + '/' + sortState.queue.length + ' ⭐' + sortState.correct;
+    var streakTxt = sortState.streak >= 2 ? ' 🔥×' + sortState.streak : '';
+    $('sortProgress').textContent = (sortState.idx + 1) + '/' + sortState.queue.length + ' ⭐' + sortState.correct + streakTxt;
     sortState.busy = false;
   }
   function pickBin(isDangerBin, binEl) {
@@ -386,11 +447,17 @@
     binEl.classList.remove('correct', 'incorrect'); void binEl.offsetWidth;
     if (correct) {
       sortState.correct++;
+      sortState.streak++;
       binEl.classList.add('correct');
-      sfx.good(); confetti(14);
+      /* pitch rises with the streak — classic arcade escalation */
+      var m = 1 + Math.min(sortState.streak, 8) * 0.07;
+      tone(523 * m, .12, 0); tone(659 * m, .12, .1); tone(784 * m, .2, .2);
+      var c = centerOf(binEl);
+      burstAt(c.x, c.y - 20, 12 + Math.min(sortState.streak * 3, 20));
       sortState.idx++;
       setTimeout(nextSortItem, 550);
     } else {
+      sortState.streak = 0;
       binEl.classList.add('incorrect');
       sfx.bad();
       var msg = it.hazard ? t(it.hazard) : (t(it.n) + ' ' + t('s_safe'));
@@ -421,7 +488,7 @@
     sizeCatch();
     catchState = {
       x: canvas.width / 2, items: [], lives: 3, caught: 0, target: 15,
-      speed: 1.4, spawnIn: 0, over: false, keys: {}
+      speed: 1.05, spawnIn: 0, over: false, keys: {}, flash: 0, level: 1
     };
     updateCatchHud();
     speak(t('catchTitle'));
@@ -454,12 +521,14 @@
     /* spawn */
     st.spawnIn -= 1;
     if (st.spawnIn <= 0 && !st.over) {
-      var bad = Math.random() < 0.38;
+      /* danger ratio ramps up gently as the round progresses */
+      var badChance = Math.min(0.42, 0.22 + st.caught * 0.013);
+      var bad = Math.random() < badChance;
       var pool = bad ? CATCH_BAD : CATCH_SAFE;
       st.items.push({ e: pool[Math.floor(Math.random() * pool.length)], bad: bad,
         x: 40 + Math.random() * (W - 80), y: -30, vy: (2 + Math.random() * 1.4) * st.speed,
         drift: (Math.random() - .5) * 1.2 });
-      st.spawnIn = Math.max(26, 60 - st.caught * 2);
+      st.spawnIn = Math.max(24, 64 - st.caught * 2.4);
     }
 
     /* update items */
@@ -469,11 +538,21 @@
       /* catch detection */
       if (it.y > basketY - fontSize * 0.4 && it.y < basketY + basketH + 10 &&
           Math.abs(it.x - st.x) < basketW / 2 + fontSize * 0.25) {
+        var rect = canvas.getBoundingClientRect();
+        var sx = rect.left + it.x / W * rect.width;
+        var sy = rect.top + it.y / H * rect.height;
         if (it.bad) {
-          st.lives--; sfx.bad();
+          st.lives--; sfx.bad(); st.flash = 10;
           if (st.lives <= 0) { st.over = true; endCatch(false); }
         } else {
-          st.caught++; sfx.tap(); st.speed += 0.03;
+          st.caught++; sfx.tap(); st.speed += 0.035;
+          burstAt(sx, sy, 10);
+          /* level-up beat every 5 catches — visible escalation */
+          if (st.caught % 5 === 0 && st.caught < st.target) {
+            st.level++; st.speed += 0.12;
+            toastMsg('🚀 ' + t('levelUp'));
+            tone(659, .1, 0); tone(880, .1, .1); tone(1109, .22, .2);
+          }
           if (st.caught >= st.target) { st.over = true; endCatch(true); }
         }
         updateCatchHud();
@@ -490,6 +569,12 @@
     /* basket */
     cctx.font = (basketW * 0.9) + 'px serif';
     cctx.fillText('🧺', st.x, basketY + 6);
+    /* red flash when a dangerous item lands in the basket */
+    if (st.flash > 0) {
+      cctx.fillStyle = 'rgba(255,60,60,' + (st.flash / 10 * 0.35) + ')';
+      cctx.fillRect(0, 0, W, H);
+      st.flash--;
+    }
 
     if (!st.over) catchRAF = requestAnimationFrame(stepCatch);
   }

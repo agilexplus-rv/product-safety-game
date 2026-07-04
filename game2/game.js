@@ -46,7 +46,11 @@ const state = {
   yaw: Math.PI / 2 + 0.5, // facing into the living room
   pitch: 0,
   pos: new THREE.Vector3(-4, 1.55, -4.6),
-  joy: { x: 0, y: 0 }
+  joy: { x: 0, y: 0 },
+  startTime: 0,           // set when investigation begins
+  houseSeconds: 0,        // set when the last product is decided
+  bobPhase: 0,
+  stepAcc: 0
 };
 
 function loadBest() { try { return Number(localStorage.getItem('psg2-best')) || 0; } catch (e) { return 0; } }
@@ -159,7 +163,11 @@ for (const p of PRODUCTS) {
   s.userData.product = p;
   const mark = makeSprite('❗', 0.3, false);
   mark.position.set(p.pos[0], p.pos[1] + 0.62, p.pos[2]);
+  /* markers show through walls so players always have a lead to follow */
+  mark.material.depthTest = false;
+  mark.renderOrder = 999;
   scene.add(s); scene.add(mark);
+  s.userData.baseScale = 0.72;
   p._mesh = s; p._mark = mark; p._decided = false;
   productMeshes.push(s);
 }
@@ -167,6 +175,7 @@ for (const p of PRODUCTS) {
 const laptop = makeSprite('💻', 0.8);
 laptop.position.set(7.8, 1.25, 6.2);
 laptop.userData.laptop = true;
+laptop.userData.baseScale = 0.8;
 scene.add(laptop);
 productMeshes.push(laptop);
 
@@ -258,9 +267,22 @@ if (IS_TOUCH) {
 }
 
 /* ============================ HUD ============================ */
+function fmtTime(s) {
+  s = Math.max(0, Math.floor(s));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function elapsed() { return state.startTime ? (performance.now() - state.startTime) / 1000 : 0; }
 function hud() {
   $('hudScore').textContent = `⭐ ${t('score')}: ${state.score}`;
-  $('hudProducts').textContent = `📦 ${state.done} ${t('ofLbl')} ${state.total}`;
+  $('hudProducts').textContent = `📦 ${state.done} ${t('ofLbl')} ${state.total} · ⏱ ${fmtTime(elapsed())}`;
+}
+/* floating +100 / −50 popup */
+function scorePop(txt, ok) {
+  const el = document.createElement('div');
+  el.className = 'score-pop ' + (ok ? 'ok' : 'no');
+  el.textContent = txt;
+  $('hud').appendChild(el);
+  setTimeout(() => el.remove(), 1400);
 }
 let toastTimer = 0;
 function toast(msg, ms = 3200) {
@@ -286,6 +308,7 @@ function showStart(paused = false) {
 $('startBtn').addEventListener('click', () => {
   $('startOverlay').classList.add('hidden');
   state.overlayOpen = false;
+  if (!state.started) state.startTime = performance.now();
   state.started = true;
   $('hud').classList.remove('hidden');
   hud();
@@ -356,8 +379,10 @@ function decide(choice) {
   const correct = (choice === 'keep') === (p.verdict === 'keep');
   state.score += correct ? 100 : -50;
   if (state.score < 0) state.score = 0;
+  scorePop(correct ? '+100' : '−50', correct);
   p._decided = true;
   state.done++;
+  if (state.done >= state.total && !state.houseSeconds) state.houseSeconds = elapsed();
   p._mark.material.map = emojiTexture(p.verdict === 'keep' ? '✅' : '❌', false);
   p._mark.material.needsUpdate = true;
   $('ipDecide').classList.add('hidden');
@@ -427,6 +452,7 @@ function decideListing(choice) {
   const correct = choice === L.verdict;
   state.score += correct ? 100 : -50;
   if (state.score < 0) state.score = 0;
+  scorePop(correct ? '+100' : '−50', correct);
   hud();
   correct ? sfx.good() : sfx.bad();
   $('listing').querySelectorAll('button').forEach(b => b.disabled = true);
@@ -445,13 +471,21 @@ $('shopContinue').addEventListener('click', () => {
 /* ============================ end screen ============================ */
 function endGame() {
   $('shopOverlay').classList.add('hidden');
+  /* speed bonus for clearing the house quickly */
+  let bonus = 0;
+  if (state.houseSeconds > 0) {
+    if (state.houseSeconds < 300) bonus = 200;
+    else if (state.houseSeconds < 480) bonus = 100;
+  }
+  state.score += bonus;
   saveBest(state.score);
   const s = state.score;
-  const rank = s >= 1600 ? 3 : s >= 1300 ? 2 : s >= 900 ? 1 : 0;
+  const bonusLine = bonus ? ` · ${t('speedBonus')}: +${bonus} (${t('houseTime')} ${fmtTime(state.houseSeconds)})` : '';
+  const rank = s >= 1750 ? 3 : s >= 1400 ? 2 : s >= 950 ? 1 : 0;
   $('endEmoji').textContent = ['🎓', '🕵️', '🥈', '🏆'][rank];
   $('endTitle').textContent = t('finalTitle');
   $('endRank').textContent = t('rank' + rank);
-  $('endScore').textContent = `${t('finalScore')}: ${s} · ${t('best')}: ${loadBest()}`;
+  $('endScore').textContent = `${t('finalScore')}: ${s}${bonusLine} · ${t('best')}: ${loadBest()}`;
   $('endOutro').textContent = t('outro');
   $('againBtn').textContent = t('playAgain');
   $('endHome').textContent = t('home');
@@ -486,10 +520,22 @@ function frame() {
       let nz = state.pos.z + wz * SPEED * dt;
       [nx, nz] = collide(nx, nz);
       state.pos.x = nx; state.pos.z = nz;
+      /* head bob + soft footsteps while walking */
+      state.bobPhase += dt * 9;
+      state.bobAmp = Math.min(0.035, (state.bobAmp || 0) + dt * 0.1);
+      state.stepAcc += dt;
+      if (state.stepAcc > 0.42) {
+        state.stepAcc = 0;
+        tone(state.bobStep ? 95 : 82, .05, 0, 'triangle', .05);
+        state.bobStep = !state.bobStep;
+      }
+    } else {
+      state.bobAmp = (state.bobAmp || 0) * 0.88;
     }
   }
 
   camera.position.copy(state.pos);
+  camera.position.y = 1.55 + Math.sin(state.bobPhase) * (state.bobAmp || 0);
   camera.rotation.set(0, 0, 0);
   camera.rotateY(state.yaw);
   camera.rotateX(state.pitch);
@@ -512,8 +558,14 @@ function frame() {
       if (o.userData.product && !o.userData.product._decided) { tgt = o; break; }
     }
     if (tgt !== state.target) {
+      if (state.target && state.target.userData.baseScale) {
+        const b = state.target.userData.baseScale;
+        state.target.scale.set(b, b, 1);
+      }
       state.target = tgt;
+      $('crosshair').classList.toggle('lock', !!tgt);
       if (tgt) {
+        sfx.open();
         const label = tgt.userData.laptop ? '💻 TazzaDeals.mt' : pick(tgt.userData.product.name);
         $('prompt').textContent = `${label} — ${IS_TOUCH ? t('tapInspect') : t('pressE')}`;
         $('prompt').classList.remove('hidden');
@@ -524,9 +576,26 @@ function frame() {
       }
     }
   } else if (state.target) {
+    if (state.target.userData.baseScale) {
+      const b = state.target.userData.baseScale;
+      state.target.scale.set(b, b, 1);
+    }
     state.target = null;
+    $('crosshair').classList.remove('lock');
     $('prompt').classList.add('hidden');
     $('inspectBtn').classList.add('hidden');
+  }
+
+  /* targeted sprite gently pulses */
+  if (state.target && state.target.userData.baseScale) {
+    const b = state.target.userData.baseScale * (1 + 0.08 * Math.sin(tm * 6));
+    state.target.scale.set(b, b, 1);
+  }
+
+  /* refresh the HUD timer about once a second */
+  if (state.started && (!frame._hudAt || tm - frame._hudAt > 1)) {
+    frame._hudAt = tm;
+    hud();
   }
 
   renderer.render(scene, camera);

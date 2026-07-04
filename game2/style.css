@@ -19,6 +19,22 @@ body { font-family: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif; color: #e
 #crosshair {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   font-size: 22px; color: rgba(255,255,255,.85); text-shadow: 0 0 6px rgba(0,0,0,.8);
+  transition: color .15s, transform .15s;
+}
+#crosshair.lock { color: #ffd166; transform: translate(-50%, -50%) scale(1.5); }
+.score-pop {
+  position: absolute; left: 50%; top: 42%; transform: translateX(-50%);
+  font-size: 34px; font-weight: 900; pointer-events: none;
+  text-shadow: 0 2px 8px rgba(0,0,0,.6);
+  animation: popFloat 1.4s ease forwards;
+}
+.score-pop.ok { color: #4ade80; }
+.score-pop.no { color: #ff7676; }
+@keyframes popFloat {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.6); }
+  18% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.15); }
+  30% { transform: translateX(-50%) translateY(-4px) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(.9); }
 }
 #prompt {
   position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%);
@@ -145,7 +161,8 @@ button.scan {
 #shopFeedback .primary { margin-top: 12px; }
 
 /* ================= end ================= */
-#endRank { font-size: 24px; font-weight: 800; color: #ffd166; margin: 6px 0; }
+#endRank { font-size: 24px; font-weight: 800; color: #ffd166; margin: 6px 0; animation: rankIn .7s cubic-bezier(.2,1.6,.4,1); }
+@keyframes rankIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 #endScore { font-size: 18px; font-weight: 700; color: #9fe8c6; margin-bottom: 10px; }
 #endOutro { text-align: left; font-size: 14px; }
 .end-links { display: flex; gap: 12px; justify-content: center; margin: 16px 0 4px; }
