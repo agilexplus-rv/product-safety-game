@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Safety Detective</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="c3d"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="hudTop">
+        <div class="hud-pill" id="hudScore"></div>
+        <div class="hud-pill" id="hudProducts"></div>
+        <div class="hud-pill" id="hudLangWrap">
+          <button class="hud-lang" data-lang-btn="en">EN</button>
+          <button class="hud-lang" data-lang-btn="mt">MT</button>
+        </div>
+      </div>
+      <div id="crosshair">+</div>
+      <div id="prompt" class="hidden"></div>
+      <button id="inspectBtn" class="hidden"></button>
+      <div id="joystick" class="hidden"><div id="stick"></div></div>
+      <div id="toast" class="hidden"></div>
+    </div>
+
+    <!-- Start / pause overlay -->
+    <div id="startOverlay">
+      <div class="panel">
+        <div class="big-emoji">🕵️</div>
+        <h1 id="ovTitle"></h1>
+        <p id="ovSub"></p>
+        <div id="howBox">
+          <h3 id="howTitle"></h3>
+          <ul>
+            <li id="how1"></li>
+            <li id="how2"></li>
+            <li id="how3"></li>
+            <li id="how4"></li>
+          </ul>
+        </div>
+        <button id="startBtn" class="primary"></button>
+        <a href="../" id="homeLink">←</a>
+      </div>
+    </div>
+
+    <!-- Product inspection overlay -->
+    <div id="inspectOverlay" class="hidden">
+      <div class="panel inspect-panel">
+        <div class="prod-head">
+          <div class="prod-emoji" id="ipEmoji"></div>
+          <div>
+            <h2 id="ipName"></h2>
+            <div class="prod-price" id="ipPrice"></div>
+          </div>
+        </div>
+        <div class="label-box">
+          <h3 id="ipLabelTitle"></h3>
+          <ul id="ipLabelList"></ul>
+        </div>
+        <div id="ipScanZone">
+          <button id="ipScanBtn" class="scan"></button>
+          <div id="ipScanResult" class="hidden"></div>
+        </div>
+        <div id="ipDecide" class="decide">
+          <button id="ipKeep" class="keep"></button>
+          <button id="ipReport" class="report"></button>
+        </div>
+        <div id="ipFeedback" class="hidden">
+          <div id="ipVerdict"></div>
+          <p id="ipWhy"></p>
+          <button id="ipContinue" class="primary"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Online shop overlay -->
+    <div id="shopOverlay" class="hidden">
+      <div class="browser">
+        <div class="browser-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <div class="urlbar">🔒 https://tazzadeals.mt</div>
+        </div>
+        <div class="shop-head">
+          <h2 id="shopTitle"></h2>
+          <p id="shopIntro"></p>
+          <div id="shopProgress"></div>
+        </div>
+        <div id="listing"></div>
+        <div id="shopFeedback" class="hidden">
+          <div id="shopVerdict"></div>
+          <p id="shopWhy"></p>
+          <button id="shopContinue" class="primary"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final results overlay -->
+    <div id="endOverlay" class="hidden">
+      <div class="panel">
+        <div class="big-emoji" id="endEmoji">🏆</div>
+        <h1 id="endTitle"></h1>
+        <div id="endRank"></div>
+        <div id="endScore"></div>
+        <p id="endOutro"></p>
+        <div class="end-links">
+          <a href="https://ec.europa.eu/safety-gate" target="_blank" rel="noopener">EU Safety Gate ↗</a>
+          <a href="https://mccaa.org.mt" target="_blank" rel="noopener">MCCAA ↗</a>
+        </div>
+        <div class="end-btns">
+          <button id="againBtn" class="primary"></button>
+          <a href="../" id="endHome" class="ghost"></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="../shared/i18n.js"></script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
