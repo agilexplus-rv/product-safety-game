@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Safety Stars</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top bar -->
+    <div id="topbar">
+      <button id="homeBtn" class="round-btn" title="Home">🏠</button>
+      <div id="starbar"><span id="starCount">⭐ 0</span></div>
+      <div style="display:flex;gap:6px">
+        <button id="soundBtn" class="round-btn" title="Sound">🔊</button>
+        <button class="round-btn lang-btn" data-lang-btn="en">EN</button>
+        <button class="round-btn lang-btn" data-lang-btn="mt">MT</button>
+      </div>
+    </div>
+
+    <!-- Hub screen -->
+    <section id="hub" class="screen">
+      <div class="mascot" id="mascot">🌟</div>
+      <h1 id="hubTitle"></h1>
+      <p id="hubSub"></p>
+      <div class="menu">
+        <button class="game-btn" data-game="spot">
+          <span class="gicon">🔍</span><span class="glabel" id="lblSpot"></span>
+          <span class="gstars" id="starsSpot"></span>
+        </button>
+        <button class="game-btn" data-game="sort">
+          <span class="gicon">🗑️</span><span class="glabel" id="lblSort"></span>
+          <span class="gstars" id="starsSort"></span>
+        </button>
+        <button class="game-btn" data-game="catch">
+          <span class="gicon">🧺</span><span class="glabel" id="lblCatch"></span>
+          <span class="gstars" id="starsCatch"></span>
+        </button>
+      </div>
+      <div id="badges"></div>
+    </section>
+
+    <!-- Spot the Danger -->
+    <section id="spot" class="screen hidden">
+      <div class="game-head">
+        <h2 id="spotTitle"></h2>
+        <div id="spotProgress"></div>
+      </div>
+      <div id="sceneWrap">
+        <div id="scene"></div>
+      </div>
+    </section>
+
+    <!-- Sort the Toys -->
+    <section id="sort" class="screen hidden">
+      <div class="game-head">
+        <h2 id="sortTitle"></h2>
+        <div id="sortProgress"></div>
+      </div>
+      <div id="sortStage">
+        <div id="convItem"></div>
+      </div>
+      <div id="bins">
+        <button id="binSafe" class="bin safe"><span class="bin-icon">😊✅</span><span id="binSafeLbl"></span></button>
+        <button id="binDanger" class="bin danger"><span class="bin-icon">🙋⚠️</span><span id="binDangerLbl"></span></button>
+      </div>
+    </section>
+
+    <!-- Catch -->
+    <section id="catch" class="screen hidden">
+      <div class="game-head">
+        <h2 id="catchTitle"></h2>
+        <div id="catchHud"><span id="catchScore"></span><span id="catchLives"></span></div>
+      </div>
+      <canvas id="catchCanvas"></canvas>
+      <p id="catchHint" class="hint"></p>
+    </section>
+
+    <!-- Feedback overlay (explanation cards) -->
+    <div id="overlay" class="hidden">
+      <div id="card">
+        <div id="cardIcon"></div>
+        <div id="cardTitle"></div>
+        <div id="cardText"></div>
+        <button id="cardBtn"></button>
+      </div>
+    </div>
+
+    <!-- Confetti layer -->
+    <canvas id="fx"></canvas>
+  </div>
+
+<script src="../shared/i18n.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
