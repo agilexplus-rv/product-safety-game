@@ -25,6 +25,22 @@ body {
   font-weight: 800; color: #e69b00; box-shadow: 0 4px 0 rgba(0,0,0,.12);
 }
 
+/* ---- ambient sky ---- */
+.sky { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.sky .sun {
+  position: absolute; top: 6%; right: 8%; font-size: 54px;
+  filter: drop-shadow(0 0 24px rgba(255, 214, 80, .8));
+  animation: sunPulse 5s infinite ease-in-out;
+}
+@keyframes sunPulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.08) } }
+.sky .cloud { position: absolute; font-size: 58px; opacity: .85; filter: drop-shadow(0 6px 8px rgba(0,60,120,.12)); }
+.sky .c1 { top: 9%; animation: drift 42s linear infinite; }
+.sky .c2 { top: 20%; font-size: 42px; animation: drift 58s linear infinite; animation-delay: -25s; }
+.sky .c3 { top: 4%; font-size: 34px; animation: drift 70s linear infinite; animation-delay: -48s; }
+@keyframes drift { from { left: -12% } to { left: 108% } }
+@media (prefers-reduced-motion: reduce) { .sky .cloud, .sky .sun, #hub .mascot { animation: none; } }
+.screen, #topbar { position: relative; z-index: 1; }
+
 /* ---- screens ---- */
 .screen { flex: 1; display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 0 10px 10px; }
 .hidden { display: none !important; }
@@ -59,9 +75,23 @@ body {
   border-radius: 24px; border: 6px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,.25);
   overflow: hidden;
 }
+/* wallpaper stripes, floorboards and a soft light vignette layered over every scene */
+#scene::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(255,255,240,.28), transparent 55%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 34px, rgba(0,0,0,.015) 34px 68px);
+}
+#scene::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 55%; bottom: 0; pointer-events: none; z-index: 1;
+  background:
+    linear-gradient(rgba(0,0,0,.14), transparent 18%),
+    repeating-linear-gradient(90deg, rgba(60,30,10,.10) 0 2px, transparent 2px 72px);
+}
 .item {
   position: absolute; transform: translate(-50%, -50%); border: none; background: none;
   cursor: pointer; line-height: 1; padding: 4px; transition: transform .12s;
+  filter: drop-shadow(0 7px 5px rgba(40, 20, 5, .30)); z-index: 2;
 }
 .item:active { transform: translate(-50%, -50%) scale(1.15); }
 .item.deco { pointer-events: none; }

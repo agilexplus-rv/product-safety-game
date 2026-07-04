@@ -3,6 +3,14 @@ html, body { height: 100%; overflow: hidden; background: #0b1020; }
 body { font-family: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif; color: #eaf0ff; user-select: none; -webkit-user-select: none; }
 #wrap { position: fixed; inset: 0; }
 #c3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* cinematic vignette + subtle warm grade over the 3D view */
+#wrap::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 62%, rgba(4, 8, 20, .30) 100%),
+    linear-gradient(rgba(255, 214, 150, .035), rgba(20, 30, 60, .05));
+}
+#hud, #startOverlay, #inspectOverlay, #shopOverlay, #endOverlay { z-index: 2; }
 .hidden { display: none !important; }
 
 /* ================= HUD ================= */

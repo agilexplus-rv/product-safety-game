@@ -563,6 +563,19 @@
 
     /* draw */
     cctx.clearRect(0, 0, W, H);
+    /* soft parallax hills */
+    cctx.fillStyle = 'rgba(140, 200, 130, .45)';
+    cctx.beginPath();
+    cctx.moveTo(0, H);
+    cctx.quadraticCurveTo(W * 0.22, H - H * 0.22, W * 0.5, H - H * 0.10);
+    cctx.quadraticCurveTo(W * 0.75, H - H * 0.02, W, H - H * 0.14);
+    cctx.lineTo(W, H); cctx.closePath(); cctx.fill();
+    cctx.fillStyle = 'rgba(110, 180, 105, .55)';
+    cctx.beginPath();
+    cctx.moveTo(0, H);
+    cctx.quadraticCurveTo(W * 0.3, H - H * 0.09, W * 0.62, H - H * 0.05);
+    cctx.quadraticCurveTo(W * 0.85, H - H * 0.02, W, H - H * 0.06);
+    cctx.lineTo(W, H); cctx.closePath(); cctx.fill();
     cctx.font = fontSize + 'px serif';
     cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
     st.items.forEach(function (it) { cctx.fillText(it.e, it.x, it.y); });
