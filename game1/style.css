@@ -46,8 +46,14 @@ body {
 .hidden { display: none !important; }
 
 /* ---- hub ---- */
-#hub .mascot { font-size: 72px; animation: bounce 1.6s infinite ease-in-out; cursor: pointer; }
+#hub .mascot { width: 130px; height: 130px; animation: bounce 1.6s infinite ease-in-out; cursor: pointer; }
+#hub .mascot svg { width: 100%; height: 100%; overflow: visible; }
 @keyframes bounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-14px) } }
+.zig-arm-r { transform-origin: 100px 48px; animation: wave 2.4s infinite ease-in-out; }
+@keyframes wave { 0%,100% { transform: rotate(0deg) } 15% { transform: rotate(-22deg) } 30% { transform: rotate(8deg) } 45% { transform: rotate(-14deg) } 60% { transform: rotate(0deg) } }
+.zig-eyes { transform-origin: 60px 52px; animation: blink 3.8s infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1) } 96% { transform: scaleY(.12) } }
+@media (prefers-reduced-motion: reduce) { .zig-arm-r, .zig-eyes { animation: none; } }
 #hub h1 { color: #14477e; font-size: clamp(26px, 6vw, 40px); text-shadow: 0 2px 0 #fff; }
 #hub p { color: #2a5c92; margin: 6px 0 18px; font-size: clamp(15px, 3vw, 19px); text-align: center; }
 .menu { display: flex; flex-direction: column; gap: 14px; width: min(430px, 94vw); }
@@ -75,19 +81,15 @@ body {
   border-radius: 24px; border: 6px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,.25);
   overflow: hidden;
 }
-/* wallpaper stripes, floorboards and a soft light vignette layered over every scene */
-#scene::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  background:
-    radial-gradient(ellipse at 50% 20%, rgba(255,255,240,.28), transparent 55%),
-    repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 34px, rgba(0,0,0,.015) 34px 68px);
-}
-#scene::after {
-  content: ''; position: absolute; left: 0; right: 0; top: 55%; bottom: 0; pointer-events: none; z-index: 1;
-  background:
-    linear-gradient(rgba(0,0,0,.14), transparent 18%),
-    repeating-linear-gradient(90deg, rgba(60,30,10,.10) 0 2px, transparent 2px 72px);
-}
+#scene .backdrop { position: absolute; inset: 0; pointer-events: none; }
+#scene .backdrop svg { width: 100%; height: 100%; display: block; }
+
+/* drawn SVG art pieces */
+.art { display: inline-block; line-height: 0; }
+.art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#cardIcon .art { filter: drop-shadow(0 6px 6px rgba(40,20,5,.2)); }
+#convItem .art { filter: drop-shadow(0 8px 10px rgba(0,0,0,.25)); }
+
 .item {
   position: absolute; transform: translate(-50%, -50%); border: none; background: none;
   cursor: pointer; line-height: 1; padding: 4px; transition: transform .12s;

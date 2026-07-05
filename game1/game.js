@@ -218,7 +218,9 @@
     if (id !== 'spot') clearTimeout(hintTimer);
   }
   function showCard(icon, title, text, btnLabel, onClose) {
-    $('cardIcon').textContent = icon;
+    /* icon may be an art id (drawn SVG) or a plain emoji */
+    if (window.ART && ART.raw(icon)) $('cardIcon').innerHTML = ART.icon(icon, 96);
+    else $('cardIcon').textContent = icon;
     $('cardTitle').textContent = title;
     $('cardText').textContent = text;
     $('cardBtn').textContent = btnLabel;
@@ -233,6 +235,14 @@
   function totalStars() { return stars.spot + stars.sort + stars.catch; }
   function starStr(n) { var s = ''; for (var i = 0; i < 3; i++) s += i < n ? '⭐' : '☆'; return s; }
   function renderHub() {
+    if (!$('mascot')._drawn) {
+      $('mascot')._drawn = true;
+      $('mascot').innerHTML = ART.mascot;
+      document.querySelectorAll('.game-btn .gicon').forEach(function (g) {
+        var id = { spot: 'magnifier', sort: 'bins', catch: 'basket' }[g.parentNode.getAttribute('data-game')];
+        if (id) g.innerHTML = ART.icon(id, 52);
+      });
+    }
     $('hubTitle').textContent = t('hubTitle');
     $('hubSub').textContent = t('hubSub');
     $('lblSpot').textContent = t('lblSpot');
@@ -254,55 +264,43 @@
   }
 
   /* ============================== SPOT THE DANGER ============================== */
-  /* Each scene: background, decorative emoji, and tappable items.
+  /* Each scene: a fully illustrated SVG backdrop (art.js) plus tappable items.
    * Positions are percentages of the scene box. */
   var SCENES = [
     { /* bedroom */
-      bg: 'linear-gradient(180deg,#ffe9c9 0%,#ffd9a3 55%,#c98d5a 55%,#b57843 100%)',
-      deco: [
-        { e: '🛏️', x: 18, y: 62, s: 15 }, { e: '🪟', x: 78, y: 26, s: 13 },
-        { e: '🖼️', x: 40, y: 20, s: 8 }, { e: '🧸', x: 18, y: 44, s: 7 }
-      ],
+      art: 'bedroom',
       items: [
-        { e: '🔋', x: 62, y: 82, s: 6, hazard: 'r_battery' },
-        { e: '🤖💔', x: 36, y: 80, s: 7, hazard: 'r_smallparts' },
-        { e: '🧶', x: 88, y: 62, s: 7, hazard: 'r_cord' },
-        { e: '⚽', x: 50, y: 88, s: 6 },
-        { e: '📚', x: 68, y: 55, s: 6 },
-        { e: '🚂', x: 22, y: 88, s: 6 },
-        { e: '🧩', x: 80, y: 86, s: 6 }
+        { icon: 'battery', x: 62, y: 86, s: 12, hazard: 'r_battery' },
+        { icon: 'broken', x: 40, y: 84, s: 12, hazard: 'r_smallparts' },
+        { icon: 'yarn', x: 23, y: 78, s: 11, hazard: 'r_cord' },
+        { icon: 'ball', x: 52, y: 76, s: 10 },
+        { icon: 'book', x: 68, y: 75, s: 9 },
+        { icon: 'train', x: 31, y: 92, s: 11 },
+        { icon: 'blocks', x: 84, y: 68, s: 9 }
       ]
     },
     { /* bathroom */
-      bg: 'linear-gradient(180deg,#d9f4ff 0%,#bfe9ff 50%,#9fd4e8 50%,#8ec7dd 100%)',
-      deco: [
-        { e: '🛁', x: 25, y: 72, s: 17 }, { e: '🚽', x: 82, y: 70, s: 10 },
-        { e: '🪥', x: 60, y: 22, s: 8 }, { e: '🧼', x: 45, y: 42, s: 5 }
-      ],
+      art: 'bathroom',
       items: [
-        { e: '💨🔌', x: 42, y: 60, s: 7, hazard: 'r_water_elec' },
-        { e: '🛍️', x: 68, y: 86, s: 7, hazard: 'r_bag' },
-        { e: '💊', x: 88, y: 40, s: 6, hazard: 'r_meds' },
-        { e: '🦆', x: 25, y: 58, s: 6 },
-        { e: '⛵', x: 14, y: 60, s: 5 },
-        { e: '🪥', x: 12, y: 30, s: 6 },
-        { e: '🧴', x: 58, y: 46, s: 5 }
+        { icon: 'hairdryer', x: 47, y: 58, s: 12, hazard: 'r_water_elec' },
+        { icon: 'bag', x: 22, y: 82, s: 11, hazard: 'r_bag' },
+        { icon: 'meds', x: 15, y: 42, s: 10, hazard: 'r_meds' },
+        { icon: 'duck', x: 64, y: 44, s: 9 },
+        { icon: 'boat', x: 79, y: 53, s: 9 },
+        { icon: 'toothbrush', x: 27, y: 46, s: 8 },
+        { icon: 'soap', x: 40, y: 87, s: 9 }
       ]
     },
     { /* playroom */
-      bg: 'linear-gradient(180deg,#e8ffe0 0%,#d2f5c8 55%,#8fce7d 55%,#7cbf6a 100%)',
-      deco: [
-        { e: '🛋️', x: 75, y: 70, s: 16 }, { e: '🧸', x: 75, y: 52, s: 8 },
-        { e: '👶', x: 30, y: 74, s: 11 }, { e: '🪟', x: 20, y: 24, s: 12 }
-      ],
+      art: 'playroom',
       items: [
-        { e: '🎈💥', x: 55, y: 86, s: 7, hazard: 'r_balloon' },
-        { e: '🧲', x: 88, y: 88, s: 6, hazard: 'r_magnets' },
-        { e: '🚫👶', x: 40, y: 60, s: 7, hazard: 'r_age03' },
-        { e: '🧩', x: 14, y: 88, s: 6 },
-        { e: '🧸', x: 62, y: 62, s: 6 },
-        { e: '🥁', x: 30, y: 90, s: 6 },
-        { e: '🚗', x: 70, y: 90, s: 5 }
+        { icon: 'balloon', x: 52, y: 80, s: 11, hazard: 'r_balloon' },
+        { icon: 'magnets', x: 89, y: 91, s: 11, hazard: 'r_magnets' },
+        { icon: 'age03', x: 38, y: 80, s: 11, hazard: 'r_age03' },
+        { icon: 'blocks', x: 61, y: 91, s: 10 },
+        { icon: 'teddy', x: 82, y: 56, s: 11 },
+        { icon: 'drum', x: 15, y: 86, s: 10 },
+        { icon: 'car', x: 44, y: 90, s: 10 }
       ]
     }
   ];
@@ -319,8 +317,8 @@
     spotState = { scene: scene, found: 0, wrong: 0,
       total: scene.items.filter(function (i) { return i.hazard; }).length };
     $('spotTitle').textContent = t('spotTitle');
-    renderScene();
     show('spot');
+    renderScene();
     speak(t('spotTitle'));
     armHint();
   }
@@ -343,23 +341,13 @@
   }
   function renderScene() {
     var sceneEl = $('scene');
-    sceneEl.innerHTML = '';
-    sceneEl.style.background = spotState.scene.bg;
     var w = sceneEl.clientWidth || 600;
-    spotState.scene.deco.forEach(function (d) {
-      var el = document.createElement('div');
-      el.className = 'item deco';
-      el.textContent = d.e;
-      el.style.left = d.x + '%'; el.style.top = d.y + '%';
-      el.style.fontSize = (d.s * w / 100) + 'px';
-      sceneEl.appendChild(el);
-    });
+    sceneEl.innerHTML = '<div class="backdrop">' + ART.scene(spotState.scene.art) + '</div>';
     spotState.scene.items.forEach(function (it) {
       var el = document.createElement('button');
       el.className = 'item' + (it._found ? ' found' : '');
-      el.innerHTML = '<span class="ring"></span>' + it.e;
+      el.innerHTML = '<span class="ring"></span>' + ART.icon(it.icon, Math.round(it.s * w / 100));
       el.style.left = (it._jx || it.x) + '%'; el.style.top = (it._jy || it.y) + '%';
-      el.style.fontSize = (it.s * w / 100) + 'px';
       el.addEventListener('click', function () { tapItem(it, el); });
       it._el = el;
       sceneEl.appendChild(el);
@@ -380,7 +368,7 @@
       var c = centerOf(el);
       burstAt(c.x, c.y, 22);
       updateSpotProgress();
-      showCard('⚠️', t('wellDone'), t(it.hazard), spotState.found >= spotState.total ? t('ok') : t('next'), function () {
+      showCard(it.icon, t('wellDone'), t(it.hazard), spotState.found >= spotState.total ? t('ok') : t('next'), function () {
         if (spotState.found >= spotState.total) finishSpot();
       });
     } else {
@@ -400,17 +388,17 @@
 
   /* ============================== SORT THE TOYS ============================== */
   var SORT_POOL = [
-    { e: '🧸', n: 'n_teddy' }, { e: '⚽', n: 'n_ball' },
-    { e: '🧩', n: 'n_blocks' }, { e: '🦆', n: 'n_duck' },
-    { e: '📖', n: 'n_book' }, { e: '🖍️', n: 'n_crayons' },
-    { e: '🚂', n: 'n_train' }, { e: '🎨', n: 'n_paint' },
-    { e: '🔋', n: 'n_battery', hazard: 'r_battery' },
-    { e: '🧲', n: 'n_magnets', hazard: 'r_magnets' },
-    { e: '🤖💔', n: 'n_broken', hazard: 'r_smallparts' },
-    { e: '🎈💥', n: 'n_balloon', hazard: 'r_balloon' },
-    { e: '🔌⚡', n: 'n_plug', hazard: 'r_water_elec' },
-    { e: '💊', n: 'n_meds', hazard: 'r_meds' },
-    { e: '📿', n: 'n_beads', hazard: 'r_age03' }
+    { icon: 'teddy', n: 'n_teddy' }, { icon: 'ball', n: 'n_ball' },
+    { icon: 'blocks', n: 'n_blocks' }, { icon: 'duck', n: 'n_duck' },
+    { icon: 'book', n: 'n_book' }, { icon: 'crayons', n: 'n_crayons' },
+    { icon: 'train', n: 'n_train' }, { icon: 'paint', n: 'n_paint' },
+    { icon: 'battery', n: 'n_battery', hazard: 'r_battery' },
+    { icon: 'magnets', n: 'n_magnets', hazard: 'r_magnets' },
+    { icon: 'broken', n: 'n_broken', hazard: 'r_smallparts' },
+    { icon: 'balloon', n: 'n_balloon', hazard: 'r_balloon' },
+    { icon: 'plug', n: 'n_plug', hazard: 'r_water_elec' },
+    { icon: 'meds', n: 'n_meds', hazard: 'r_meds' },
+    { icon: 'beads', n: 'n_beads', hazard: 'r_age03' }
   ];
   var sortState = null;
   function shuffle(a) {
@@ -434,7 +422,8 @@
   function nextSortItem() {
     if (sortState.idx >= sortState.queue.length) return finishSort();
     var it = sortState.queue[sortState.idx];
-    $('convItem').innerHTML = it.e + '<span class="tag">' + t(it.n) + '</span>';
+    var big = Math.min(140, Math.round(innerWidth * 0.24));
+    $('convItem').innerHTML = ART.icon(it.icon, big) + '<span class="tag">' + t(it.n) + '</span>';
     var streakTxt = sortState.streak >= 2 ? ' 🔥×' + sortState.streak : '';
     $('sortProgress').textContent = (sortState.idx + 1) + '/' + sortState.queue.length + ' ⭐' + sortState.correct + streakTxt;
     sortState.busy = false;
@@ -461,7 +450,7 @@
       binEl.classList.add('incorrect');
       sfx.bad();
       var msg = it.hazard ? t(it.hazard) : (t(it.n) + ' ' + t('s_safe'));
-      showCard(it.e, t('oops'), msg, t('next'), function () {
+      showCard(it.icon, t('oops'), msg, t('next'), function () {
         sortState.idx++;
         nextSortItem();
       });
@@ -476,10 +465,13 @@
   }
 
   /* ============================== CATCH ============================== */
-  var CATCH_SAFE = ['🧸', '⚽', '🦆', '🚂', '🧩', '📖'];
-  var CATCH_BAD = ['🔋', '🧲', '🔌', '💊', '🪤'];
+  var CATCH_SAFE = ['teddy', 'ball', 'duck', 'train', 'blocks', 'book'];
+  var CATCH_BAD = ['battery', 'magnets', 'plug', 'meds', 'balloon'];
   var catchState = null, catchRAF = 0;
   var canvas = $('catchCanvas'), cctx = canvas.getContext('2d');
+  /* pre-rendered SVG images for canvas drawing */
+  var IMG = {};
+  CATCH_SAFE.concat(CATCH_BAD).concat(['basket']).forEach(function (id) { IMG[id] = ART.image(id); });
 
   function startCatch() {
     $('catchTitle').textContent = t('catchTitle');
@@ -525,7 +517,7 @@
       var badChance = Math.min(0.42, 0.22 + st.caught * 0.013);
       var bad = Math.random() < badChance;
       var pool = bad ? CATCH_BAD : CATCH_SAFE;
-      st.items.push({ e: pool[Math.floor(Math.random() * pool.length)], bad: bad,
+      st.items.push({ icon: pool[Math.floor(Math.random() * pool.length)], bad: bad,
         x: 40 + Math.random() * (W - 80), y: -30, vy: (2 + Math.random() * 1.4) * st.speed,
         drift: (Math.random() - .5) * 1.2 });
       st.spawnIn = Math.max(24, 64 - st.caught * 2.4);
@@ -576,12 +568,24 @@
     cctx.quadraticCurveTo(W * 0.3, H - H * 0.09, W * 0.62, H - H * 0.05);
     cctx.quadraticCurveTo(W * 0.85, H - H * 0.02, W, H - H * 0.06);
     cctx.lineTo(W, H); cctx.closePath(); cctx.fill();
-    cctx.font = fontSize + 'px serif';
-    cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
-    st.items.forEach(function (it) { cctx.fillText(it.e, it.x, it.y); });
+    var iconSize = fontSize * 1.35;
+    st.items.forEach(function (it) {
+      var img = IMG[it.icon];
+      if (img && img.complete) {
+        /* soft bubble behind each item so pale icons stay visible */
+        cctx.beginPath();
+        cctx.arc(it.x, it.y, iconSize * 0.62, 0, 7);
+        cctx.fillStyle = it.bad ? 'rgba(255,225,225,.85)' : 'rgba(255,255,255,.8)';
+        cctx.fill();
+        cctx.lineWidth = 3;
+        cctx.strokeStyle = it.bad ? 'rgba(229,83,61,.55)' : 'rgba(74,163,255,.4)';
+        cctx.stroke();
+        cctx.drawImage(img, it.x - iconSize / 2, it.y - iconSize / 2, iconSize, iconSize);
+      }
+    });
     /* basket */
-    cctx.font = (basketW * 0.9) + 'px serif';
-    cctx.fillText('🧺', st.x, basketY + 6);
+    var bimg = IMG.basket, bs = basketW * 1.15;
+    if (bimg && bimg.complete) cctx.drawImage(bimg, st.x - bs / 2, basketY - bs / 2 + 10, bs, bs);
     /* red flash when a dangerous item lands in the basket */
     if (st.flash > 0) {
       cctx.fillStyle = 'rgba(255,60,60,' + (st.flash / 10 * 0.35) + ')';
