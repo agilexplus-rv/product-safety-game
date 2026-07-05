@@ -402,8 +402,8 @@ windowBox(-6, 1.7, 6.98, 2.4, 1.35, -1);     // bedroom
 windowBox(6.2, 1.7, 6.98, 1.9, 1.35, -1);    // study
 
 /* ---------- wall art ---------- */
-function picture(cx, cy, cz, w, h, facing, hue) {
-  const art = canvasTex(128, (x, s) => {
+const ART_STYLES = {
+  abstract(x, s, hue) {
     x.fillStyle = `hsl(${hue}, 42%, 78%)`; x.fillRect(0, 0, s, s);
     for (let i = 0; i < 5; i++) {
       x.fillStyle = `hsla(${hue + i * 28}, 55%, ${40 + i * 8}%, .8)`;
@@ -411,22 +411,199 @@ function picture(cx, cy, cz, w, h, facing, hue) {
       x.arc(20 + Math.random() * 88, 20 + Math.random() * 88, 10 + Math.random() * 22, 0, 7);
       x.fill();
     }
-  });
+  },
+  sea(x, s) {
+    const g = x.createLinearGradient(0, 0, 0, s * 0.62);
+    g.addColorStop(0, '#ffd9a3'); g.addColorStop(1, '#ff9d76');
+    x.fillStyle = g; x.fillRect(0, 0, s, s * 0.62);
+    x.fillStyle = '#fff3c4';
+    x.beginPath(); x.arc(s * 0.62, s * 0.4, s * 0.12, 0, 7); x.fill();
+    const w = x.createLinearGradient(0, s * 0.62, 0, s);
+    w.addColorStop(0, '#3f7fae'); w.addColorStop(1, '#28567c');
+    x.fillStyle = w; x.fillRect(0, s * 0.62, s, s * 0.38);
+    x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      x.beginPath();
+      const y = s * (0.68 + i * 0.06);
+      x.moveTo(s * Math.random() * 0.3, y);
+      x.lineTo(s * (0.55 + Math.random() * 0.4), y);
+      x.stroke();
+    }
+  },
+  boats(x, s) {
+    x.fillStyle = '#cde9f2'; x.fillRect(0, 0, s, s * 0.6);
+    x.fillStyle = '#4f93b8'; x.fillRect(0, s * 0.6, s, s * 0.4);
+    /* two luzzu-coloured hulls with sails */
+    for (const [bx, sc, hull] of [[s * 0.32, 1, '#d9534f'], [s * 0.68, 0.7, '#e8b430']]) {
+      x.fillStyle = hull;
+      x.beginPath();
+      x.moveTo(bx - 22 * sc, s * 0.62); x.lineTo(bx + 22 * sc, s * 0.62);
+      x.lineTo(bx + 14 * sc, s * 0.62 + 12 * sc); x.lineTo(bx - 14 * sc, s * 0.62 + 12 * sc);
+      x.closePath(); x.fill();
+      x.strokeStyle = '#3d2f22'; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(bx, s * 0.62); x.lineTo(bx, s * 0.62 - 34 * sc); x.stroke();
+      x.fillStyle = '#f6f2e7';
+      x.beginPath();
+      x.moveTo(bx, s * 0.62 - 34 * sc); x.lineTo(bx + 20 * sc, s * 0.6); x.lineTo(bx, s * 0.6);
+      x.closePath(); x.fill();
+    }
+  },
+  leaves(x, s) {
+    x.fillStyle = '#f2ead8'; x.fillRect(0, 0, s, s);
+    x.strokeStyle = '#4f7d55'; x.lineWidth = 4; x.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const bx = s * (0.25 + i * 0.17);
+      x.beginPath(); x.moveTo(bx, s * 0.9);
+      x.quadraticCurveTo(bx + (i % 2 ? 18 : -18), s * 0.5, bx + (i % 2 ? 8 : -8), s * 0.18);
+      x.stroke();
+      x.fillStyle = i % 2 ? '#6da173' : '#4f7d55';
+      for (let l = 0; l < 4; l++) {
+        const t = 0.3 + l * 0.16;
+        x.beginPath();
+        x.ellipse(bx + (i % 2 ? 12 : -12) * t, s * (0.9 - t * 0.7), 9, 4, (i % 2 ? -0.6 : 0.6), 0, 7);
+        x.fill();
+      }
+    }
+  }
+};
+function picture(cx, cy, cz, w, h, facing, hue, style = 'abstract') {
+  const art = canvasTex(128, (x, s) => ART_STYLES[style](x, s, hue));
   const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
     new THREE.MeshStandardMaterial({ map: art, roughness: 0.85 }));
-  p.position.set(cx, cy, cz);
-  p.rotation.y = facing === 'n' ? 0 : facing === 's' ? Math.PI : facing === 'e' ? -Math.PI / 2 : Math.PI / 2;
+  /* nudge the art off the wall so it sits proud of its frame */
+  p.position.set(
+    cx + (facing === 'e' ? 0.012 : facing === 'w' ? -0.012 : 0),
+    cy,
+    cz + (facing === 'n' ? 0.012 : facing === 's' ? -0.012 : 0));
+  p.rotation.y = facing === 'n' ? 0 : facing === 's' ? Math.PI : facing === 'e' ? Math.PI / 2 : -Math.PI / 2;
   scene.add(p);
-  addBox(cx + (facing === 'e' ? 0.02 : facing === 'w' ? -0.02 : 0),
+  addBox(cx + (facing === 'e' ? -0.02 : facing === 'w' ? 0.02 : 0),
     cz + (facing === 'n' ? -0.02 : facing === 's' ? 0.02 : 0),
     facing === 'e' || facing === 'w' ? 0.04 : w + 0.12,
     facing === 'e' || facing === 'w' ? w + 0.12 : 0.04,
     h + 0.12, 0x3d2f22, cy, false, { roughness: 0.5 });
 }
-picture(-8.5, 1.8, -6.98, 1.1, 0.85, 'n', 200);
-picture(-9.98, 1.75, 4.5, 1.0, 0.8, 'e', 320);
-picture(9.98, 1.8, -3.5, 1.0, 0.8, 'w', 140);
-picture(2.5, 1.85, 6.98, 0.9, 0.75, 's', 40);
+picture(-8.5, 1.8, -6.98, 1.1, 0.85, 'n', 200, 'sea');
+picture(-9.98, 1.75, 4.5, 1.0, 0.8, 'e', 320, 'leaves');
+picture(9.98, 1.8, -3.5, 1.0, 0.8, 'w', 140, 'boats');
+picture(2.5, 1.85, 6.98, 0.9, 0.75, 's', 40, 'abstract');
+/* gallery wall above the sofa */
+picture(-9.97, 2.0, -1.7, 0.62, 0.5, 'e', 20, 'boats');
+picture(-9.97, 1.95, -2.55, 0.55, 0.68, 'e', 200, 'sea');
+picture(-9.97, 2.05, -3.4, 0.62, 0.5, 'e', 120, 'leaves');
+
+/* ---------- accent walls ---------- */
+function accent(cx, cy, cz, w, h, ry, color) {
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.93 }));
+  p.position.set(cx, cy, cz);
+  p.rotation.y = ry;
+  p.receiveShadow = true;
+  scene.add(p);
+}
+accent(-9.99, 1.4, -3.5, 6.9, 2.8, Math.PI / 2, 0x44618f);  // living, behind the sofa
+accent(-5, 1.4, 6.995, 9.9, 2.8, Math.PI, 0xa8768c);        // bedroom head wall
+
+/* ---------- decor ---------- */
+/* wall clock in the kitchen */
+{
+  const clockTex = canvasTex(128, (x, s) => {
+    x.fillStyle = '#faf6ec'; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.fill();
+    x.strokeStyle = '#3d2f22'; x.lineWidth = 7; x.stroke();
+    x.lineWidth = 3;
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      x.beginPath();
+      x.moveTo(64 + Math.cos(a) * 48, 64 + Math.sin(a) * 48);
+      x.lineTo(64 + Math.cos(a) * 54, 64 + Math.sin(a) * 54);
+      x.stroke();
+    }
+    x.lineWidth = 5; x.beginPath(); x.moveTo(64, 64); x.lineTo(64 + 24, 64 - 14); x.stroke();
+    x.lineWidth = 4; x.beginPath(); x.moveTo(64, 64); x.lineTo(64 - 8, 64 - 38); x.stroke();
+    x.strokeStyle = '#d9534f'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(64, 64); x.lineTo(64 + 34, 64 + 22); x.stroke();
+  });
+  const clock = new THREE.Mesh(new THREE.CircleGeometry(0.28, 28),
+    new THREE.MeshStandardMaterial({ map: clockTex, roughness: 0.6, transparent: true }));
+  clock.position.set(7.6, 2.05, -6.97);
+  scene.add(clock);
+}
+/* mirror in the study hall */
+{
+  const mirror = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 1.1),
+    new THREE.MeshStandardMaterial({ color: 0xcfdfeb, metalness: 1, roughness: 0.04, envMapIntensity: 2.2 }));
+  mirror.position.set(9.97, 1.6, 5.4);
+  mirror.rotation.y = -Math.PI / 2;
+  scene.add(mirror);
+  addBox(9.98, 5.4, 0.03, 0.72, 1.22, 0x8a6a3c, 1.6, false, { roughness: 0.4 });
+}
+/* floor lamp beside the sofa */
+{
+  addBox(-9.2, -5.9, 0.34, 0.34, 0.04, 0x3d2f22, 0.02, false, { roughness: 0.5 });
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3d2f22, metalness: 0.5, roughness: 0.4 }));
+  pole.position.set(-9.2, 0.79, -5.9);
+  scene.add(pole);
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.3, 16, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0xf3e2c0, emissive: 0xffd9a0, emissiveIntensity: 1.3,
+      side: THREE.DoubleSide, roughness: 0.9
+    }));
+  shade.position.set(-9.2, 1.62, -5.9);
+  scene.add(shade);
+  const lampLight = new THREE.PointLight(0xffd9a8, 3, 5, 1.8);
+  lampLight.position.set(-9.2, 1.55, -5.9);
+  scene.add(lampLight);
+}
+/* pendant lamps over the kitchen table */
+for (const px of [4.5, 5.5]) {
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 6),
+    new THREE.MeshStandardMaterial({ color: 0x2b2b2b }));
+  cord.position.set(px, 2.45, -2.8);
+  scene.add(cord);
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.17, 0.16, 16, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x3f6155, emissive: 0xffe2b0, emissiveIntensity: 1.1,
+      side: THREE.DoubleSide, roughness: 0.6
+    }));
+  shade.position.set(px, 2.05, -2.8);
+  scene.add(shade);
+}
+/* upper kitchen cabinets flanking the window */
+addBox(2.4, -6.82, 2.2, 0.5, 0.75, 0xe6ebf0, 2.05, false, { roughness: 0.5 });
+addBox(7.9, -6.82, 1.6, 0.5, 0.75, 0xe6ebf0, 2.05, false, { roughness: 0.5 });
+/* vase of flowers on the kitchen table */
+{
+  const vase = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.075, 0.2, 12),
+    new THREE.MeshStandardMaterial({ color: 0x7fa8c9, roughness: 0.25 }));
+  vase.position.set(4.55, 1.08, -2.55);
+  scene.add(vase);
+  for (const [ox, oy, oz, col] of [[0, 0.3, 0, 0xe0455a], [0.06, 0.26, 0.04, 0xffd166], [-0.06, 0.27, -0.03, 0xb06ef2]]) {
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 }));
+    f.position.set(4.55 + ox, 1.08 + oy, -2.55 + oz);
+    scene.add(f);
+  }
+}
+/* fruit bowl on the counter */
+{
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.09, 0.09, 16),
+    new THREE.MeshStandardMaterial({ color: 0x39404d, roughness: 0.3 }));
+  bowl.position.set(5.6, 1.08, -6.42);
+  scene.add(bowl);
+  for (const [ox, oz, col] of [[-0.05, 0, 0xff9f43], [0.06, 0.02, 0xd9534f], [0, -0.05, 0x8fc75a]]) {
+    const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.55 }));
+    fruit.position.set(5.6 + ox, 1.15, -6.42 + oz);
+    scene.add(fruit);
+  }
+}
+/* throw blanket over the sofa arm + books on the coffee table */
+addBox(-8.8, -4.25, 1.2, 0.36, 0.06, 0xd8b64c, 1.09, false, { roughness: 0.95 });
+addBox(-6.35, -2.95, 0.3, 0.22, 0.05, 0xb5484d, 0.81, false, { roughness: 0.8 });
+addBox(-6.35, -2.95, 0.26, 0.19, 0.045, 0x3f6f8f, 0.86, false, { roughness: 0.8 });
+/* small photo frame on the bedroom desk */
+addBox(-2.2, 6.5, 0.16, 0.03, 0.2, 0x8a6a3c, 1.12, false, { roughness: 0.4 });
 
 /* ---------- furniture (composite, PBR) ---------- */
 const WOOD_D = 0x6b4a32, WOOD_M = 0x8a6242, FABRIC = 0x46628f;
