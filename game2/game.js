@@ -1,7 +1,12 @@
 /* Safety Detective — first-person product-safety investigation for ages 8–12.
  * Explore a 3D house, inspect products (labels, CE marks, EU Safety Gate recalls),
  * then beat the dodgy online shop on the study laptop. */
-import * as THREE from '../vendor/three.module.min.js';
+import * as THREE from 'three';
+import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
 import { UI, PRODUCTS, LISTINGS } from './data.js';
 
 const lang = () => PSG.getLang();
@@ -63,13 +68,29 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 0.95;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0c1120);
 const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 60);
 
+/* image-based lighting: gives every PBR surface soft studio reflections */
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.22;
+
+/* post-processing: MSAA render target + bloom + tone-mapped output */
+const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
+  samples: IS_TOUCH ? 0 : 4,
+  type: THREE.HalfFloatType
+});
+const composer = new EffectComposer(renderer, composerTarget);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.16, 0.5, 0.92);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
 /* ---------- lighting: daylight through the windows + warm interior ---------- */
-scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x8a7660, 0.7));
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x8a7660, 0.42));
 const sun = new THREE.DirectionalLight(0xffeeda, 2.4);
 sun.position.set(5, 9, -7);
 sun.castShadow = true;
@@ -80,7 +101,7 @@ sun.shadow.camera.near = 1; sun.shadow.camera.far = 32;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
 [[-5, -3.2], [5, -3.2], [-5, 3.6], [5, 3.6]].forEach(([x, z]) => {
-  const pl = new THREE.PointLight(0xffd9a8, 7, 9, 1.8);
+  const pl = new THREE.PointLight(0xffd9a8, 5, 9, 1.8);
   pl.position.set(x, 2.45, z);
   scene.add(pl);
 });
@@ -145,6 +166,64 @@ const skyTex = canvasTex(256, (x, s) => {
   x.fillStyle = '#fff7d6';
   x.beginPath(); x.arc(210, 40, 20, 0, 7); x.fill();
 });
+/* derive a tangent-space normal map from a grayscale height canvas (Sobel) */
+function normalFromHeight(draw, size, strength, rx, ry) {
+  const hc = document.createElement('canvas');
+  hc.width = hc.height = size;
+  const hx = hc.getContext('2d');
+  draw(hx, size);
+  const src = hx.getImageData(0, 0, size, size).data;
+  const h = (x, y) => src[(((y + size) % size) * size + ((x + size) % size)) * 4] / 255;
+  const nc = document.createElement('canvas');
+  nc.width = nc.height = size;
+  const nx = nc.getContext('2d');
+  const out = nx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (h(x - 1, y) - h(x + 1, y)) * strength;
+      const dy = (h(x, y - 1) - h(x, y + 1)) * strength;
+      const len = Math.sqrt(dx * dx + dy * dy + 1);
+      const i = (y * size + x) * 4;
+      out.data[i] = (dx / len * 0.5 + 0.5) * 255;
+      out.data[i + 1] = (dy / len * 0.5 + 0.5) * 255;
+      out.data[i + 2] = (1 / len * 0.5 + 0.5) * 255;
+      out.data[i + 3] = 255;
+    }
+  }
+  nx.putImageData(out, 0, 0);
+  const t = new THREE.CanvasTexture(nc);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  return t;
+}
+const woodNormal = normalFromHeight((x, s) => {
+  x.fillStyle = '#808080'; x.fillRect(0, 0, s, s);
+  const ph = s / 8;
+  for (let p = 0; p < 8; p++) {
+    /* dark seams between planks read as grooves */
+    x.fillStyle = '#2a2a2a';
+    x.fillRect(0, p * ph + ph - 3, s, 3);
+    x.fillStyle = 'rgba(255,255,255,.10)';
+    x.fillRect(0, p * ph, s, 2);
+    x.strokeStyle = 'rgba(96,96,96,.5)';
+    for (let g = 0; g < 6; g++) {
+      x.beginPath();
+      const gy = p * ph + Math.random() * ph;
+      x.moveTo(0, gy);
+      for (let gx = 0; gx <= s; gx += 64) x.lineTo(gx, gy + (Math.random() - .5) * 5);
+      x.stroke();
+    }
+  }
+}, 256, 2.2, 5, 3.6);
+const plasterNormal = normalFromHeight((x, s) => {
+  x.fillStyle = '#808080'; x.fillRect(0, 0, s, s);
+  for (let i = 0; i < 1400; i++) {
+    const v = 110 + Math.random() * 60;
+    x.fillStyle = `rgb(${v},${v},${v})`;
+    x.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+  }
+}, 128, 1.1, 3, 1.2);
+
 const glowTex = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 128;
   const x = c.getContext('2d');
@@ -177,7 +256,10 @@ function addBox(cx, cz, sx, sz, h, color, y = null, solid = true, opts = {}) {
 
 /* ---------- floor, ceiling, rugs ---------- */
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(20.6, 14.6),
-  new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55, metalness: 0.06 }));
+  new THREE.MeshStandardMaterial({
+    map: woodTex, normalMap: woodNormal, normalScale: new THREE.Vector2(0.7, 0.7),
+    roughness: 0.45, metalness: 0.06
+  }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
@@ -207,7 +289,10 @@ scene.add(ceiling);
 
 /* ---------- walls: outer shell + dividers with door gaps ---------- */
 const H = 2.8;
-const wallOpts = { map: plasterTex, roughness: 0.94, metalness: 0 };
+const wallOpts = {
+  map: plasterTex, normalMap: plasterNormal, normalScale: new THREE.Vector2(0.4, 0.4),
+  roughness: 0.94, metalness: 0
+};
 function wall(cx, cz, sx, sz) { return addBox(cx, cz, sx, sz, H, 0xf0e6d6, null, true, wallOpts); }
 wall(0, -7.15, 20.6, 0.3);
 wall(0, 7.15, 20.6, 0.3);
@@ -237,6 +322,20 @@ function windowBox(cx, cy, cz, w, h, facing) {
   addBox(cx, fz, w, d, f * 0.6, 0xf7f7f2, cy, false, frameMat);      // transom
   /* sill */
   addBox(cx, cz + facing * 0.12, w + 0.3, 0.22, 0.06, 0xefe9dd, cy - h / 2 - f, false, frameMat);
+  /* volumetric-style sun shaft angling into the room */
+  const shaftLen = 3.6;
+  for (const [op, wf] of [[0.055, 1], [0.03, 0.6]]) {
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(w * wf, shaftLen),
+      new THREE.MeshBasicMaterial({
+        color: 0xfff3d6, transparent: true, opacity: op,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+      }));
+    const tilt = 0.9; // radians from vertical
+    shaft.position.set(cx, cy - Math.cos(tilt) * shaftLen / 2 + h * 0.3,
+      cz + facing * (Math.sin(tilt) * shaftLen / 2 + 0.05));
+    shaft.rotation.x = facing > 0 ? -tilt : tilt;
+    scene.add(shaft);
+  }
 }
 windowBox(-5.5, 1.7, -6.98, 2.4, 1.35, 1);   // living room
 windowBox(4.5, 1.9, -6.98, 1.9, 1.0, 1);     // kitchen, above the counter
@@ -386,7 +485,7 @@ function emojiTexture(emoji, bg = true) {
   c.width = c.height = 256;
   const x = c.getContext('2d');
   if (bg) {
-    x.fillStyle = 'rgba(255,255,255,0.92)';
+    x.fillStyle = 'rgba(226,231,238,0.95)';
     x.beginPath();
     x.roundRect ? x.roundRect(16, 16, 224, 224, 40) : x.rect(16, 16, 224, 224);
     x.fill();
@@ -859,11 +958,12 @@ function frame() {
     hud();
   }
 
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
