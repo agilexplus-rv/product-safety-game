@@ -61,3 +61,13 @@ Both games verified after the pass with automated Playwright runs (no console/pa
 - Game 1: a fourth mini-game around the CE mark; printable reward certificate
 - Game 2: second level (supermarket), randomised product batches per run, local leaderboard
 - Real device/user testing with the target age groups — the only benchmark that truly counts
+
+## Graphics loop (AAA-inspired benchmark, July 2026)
+
+Three iterations on Safety Detective's renderer, each verified by screenshot + full Playwright flows:
+
+1. **Pipeline** — EffectComposer post-processing (4× MSAA, Unreal bloom, filmic output), image-based lighting (RoomEnvironment PMREM), Sobel-derived normal maps for floor/walls, window sun shafts, exposure rebalance.
+2. **Props** — rounded-edge furniture geometry, streaky floor roughness map, contact shadows under all furniture, curtains, skirting boards.
+3. **Grade & AO** — cinematic color-grade shader pass (S-curve, saturation lift, warm/cool split toning), baked-style AO strips at wall-floor junctions, plus `?lowfx=1` light path and automatic quality degradation (resolution, then bloom) for weak devices.
+
+Stopped here: further gains (true SSAO, photogrammetry-style assets, baked lightmaps) need real asset pipelines that don't fit a procedural, no-asset browser build.

@@ -6,6 +6,7 @@ import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from '../vendor/jsm/geometries/RoundedBoxGeometry.js';
 import { UI, PRODUCTS, LISTINGS } from './data.js';
@@ -15,6 +16,8 @@ const t = (k) => (UI[lang()] && UI[lang()][k]) !== undefined ? UI[lang()][k] : U
 const pick = (obj) => (typeof obj === 'object' && obj !== null && ('en' in obj)) ? (obj[lang()] || obj.en) : obj;
 const $ = (id) => document.getElementById(id);
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+/* ?lowfx=1 forces the light render path (also used by automated tests) */
+const LOW_FX = new URLSearchParams(location.search).has('lowfx');
 
 /* ============================ audio ============================ */
 let actx = null;
@@ -65,7 +68,7 @@ function saveBest(v) { try { if (v > loadBest()) localStorage.setItem('psg2-best
 /* ============================ three.js scene ============================ */
 const canvas = $('c3d');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.5 : 2));
+renderer.setPixelRatio(LOW_FX ? 1 : Math.min(devicePixelRatio, IS_TOUCH ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -81,13 +84,30 @@ scene.environmentIntensity = 0.22;
 
 /* post-processing: MSAA render target + bloom + tone-mapped output */
 const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
-  samples: IS_TOUCH ? 0 : 4,
+  samples: (IS_TOUCH || LOW_FX) ? 0 : 4,
   type: THREE.HalfFloatType
 });
 const composer = new EffectComposer(renderer, composerTarget);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.16, 0.5, 0.92);
+bloom.enabled = !LOW_FX;
 composer.addPass(bloom);
+/* cinematic grade: gentle S-curve, saturation lift, warm-highlight split tone */
+composer.addPass(new ShaderPass({
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      vec3 x = clamp(c.rgb, 0.0, 1.0);
+      c.rgb = mix(c.rgb, x * x * (3.0 - 2.0 * x), 0.35);
+      float l = clamp(dot(c.rgb, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
+      c.rgb = mix(vec3(l), c.rgb, 1.12);
+      c.rgb += (l - 0.5) * vec3(0.030, 0.012, -0.024);
+      gl_FragColor = c;
+    }`
+}));
 composer.addPass(new OutputPass());
 
 /* ---------- lighting: daylight through the windows + warm interior ---------- */
@@ -296,7 +316,7 @@ rug(5, -2.6, 4.2, 3.2, '#d8d3c8', '#9d9484');    // kitchen
 rug(-5.2, 3.6, 5.2, 3.4, '#b287a0', '#8a5f7b');  // bedroom
 rug(6, 4, 4.6, 3.2, '#7dae8c', '#548a66');       // study
 const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(20.6, 14.6),
-  new THREE.MeshStandardMaterial({ color: 0xf0ebe0, roughness: 0.9 }));
+  new THREE.MeshStandardMaterial({ color: 0xe4dfd3, roughness: 1 }));
 ceiling.rotation.x = Math.PI / 2; ceiling.position.y = 2.8;
 ceiling.receiveShadow = true;
 scene.add(ceiling);
@@ -517,6 +537,38 @@ function plant(cx, cz) {
 plant(-9.4, -6.4);
 plant(9.35, 5.9);
 plant(0.85, -0.85);
+
+/* baked-style ambient occlusion: darkening strips where walls meet the floor */
+const aoTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = 8; c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 64);
+  g.addColorStop(0, 'rgba(20,14,8,.30)');
+  g.addColorStop(1, 'rgba(20,14,8,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 8, 64);
+  return new THREE.CanvasTexture(c);
+})();
+function aoStrip(cx, cz, len, axis, dir) {
+  const geo = new THREE.PlaneGeometry(len, 0.42);
+  geo.rotateZ(axis === 'x' ? (dir > 0 ? 0 : Math.PI) : (dir > 0 ? Math.PI / 2 : -Math.PI / 2));
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: aoTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(axis === 'x' ? cx : cx + dir * 0.22, 0.018, axis === 'x' ? cz + dir * 0.22 : cz);
+  scene.add(m);
+}
+aoStrip(0, -6.98, 20, 'x', 1);
+aoStrip(0, 6.98, 20, 'x', -1);
+aoStrip(-9.98, 0, 14, 'z', 1);
+aoStrip(9.98, 0, 14, 'z', -1);
+for (const [cz, len] of [[-5.5, 3], [0, 4], [5.5, 3]]) {
+  aoStrip(0.15, cz, len, 'z', 1);
+  aoStrip(-0.15, cz, len, 'z', -1);
+}
+for (const [cx, len] of [[-8, 4], [0, 8], [8, 4]]) {
+  aoStrip(cx, 0.15, len, 'x', 1);
+  aoStrip(cx, -0.15, len, 'x', -1);
+}
 
 /* soft contact shadows under every piece of furniture */
 const blobTex = (() => {
@@ -916,8 +968,28 @@ raycaster.far = 3.2;
 const center = new THREE.Vector2(0, 0);
 const clock = new THREE.Clock();
 
+/* dynamic quality scaling: drop bloom and resolution if the device can't keep up */
+let slowFrames = 0, qualityStep = 0;
+function autoQuality(rawDt) {
+  if (LOW_FX || qualityStep >= 2) return;
+  if (rawDt > 0.045) slowFrames++;
+  else slowFrames = Math.max(0, slowFrames - 2);
+  if (slowFrames > 45) {
+    slowFrames = 0;
+    qualityStep++;
+    if (qualityStep === 1) {
+      renderer.setPixelRatio(1);
+      resize();
+    } else {
+      bloom.enabled = false;
+    }
+  }
+}
+
 function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta();
+  autoQuality(rawDt);
+  const dt = Math.min(rawDt, 0.05);
 
   if (state.started && !state.overlayOpen) {
     let mx = 0, mz = 0;
