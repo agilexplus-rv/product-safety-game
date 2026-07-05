@@ -7,6 +7,7 @@ import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from '../vendor/jsm/geometries/RoundedBoxGeometry.js';
 import { UI, PRODUCTS, LISTINGS } from './data.js';
 
 const lang = () => PSG.getLang();
@@ -243,10 +244,14 @@ function addCollider(cx, cz, sx, sz) {
   colliders.push({ minX: cx - sx / 2, maxX: cx + sx / 2, minZ: cz - sz / 2, maxZ: cz + sz / 2 });
 }
 function addBox(cx, cz, sx, sz, h, color, y = null, solid = true, opts = {}) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(sx, h, sz),
-    new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.82, metalness: 0.04 }, opts))
-  );
+  /* furniture gets soft rounded edges; walls (sharp:true) stay crisp */
+  const matOpts = Object.assign({ color, roughness: 0.82, metalness: 0.04 }, opts);
+  delete matOpts.sharp;
+  const r = opts.sharp ? 0 : Math.min(0.045, sx * 0.42, sz * 0.42, h * 0.42);
+  const geo = r > 0.008
+    ? new RoundedBoxGeometry(sx, h, sz, 2, r)
+    : new THREE.BoxGeometry(sx, h, sz);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(matOpts));
   m.position.set(cx, y === null ? h / 2 : y, cz);
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
@@ -255,10 +260,26 @@ function addBox(cx, cz, sx, sz, h, color, y = null, solid = true, opts = {}) {
 }
 
 /* ---------- floor, ceiling, rugs ---------- */
+/* streaky roughness variation so window light glints unevenly off the boards */
+const floorRoughTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#7d7d7d'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i++) {
+    const v = 70 + Math.random() * 120;
+    x.fillStyle = `rgba(${v},${v},${v},.5)`;
+    x.fillRect(Math.random() * 256, Math.random() * 256, 30 + Math.random() * 90, 3 + Math.random() * 10);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(5, 3.6);
+  return t;
+})();
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(20.6, 14.6),
   new THREE.MeshStandardMaterial({
     map: woodTex, normalMap: woodNormal, normalScale: new THREE.Vector2(0.7, 0.7),
-    roughness: 0.45, metalness: 0.06
+    roughnessMap: floorRoughTex, roughness: 0.9, metalness: 0.06
   }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
@@ -291,7 +312,7 @@ scene.add(ceiling);
 const H = 2.8;
 const wallOpts = {
   map: plasterTex, normalMap: plasterNormal, normalScale: new THREE.Vector2(0.4, 0.4),
-  roughness: 0.94, metalness: 0
+  roughness: 0.94, metalness: 0, sharp: true
 };
 function wall(cx, cz, sx, sz) { return addBox(cx, cz, sx, sz, H, 0xf0e6d6, null, true, wallOpts); }
 wall(0, -7.15, 20.6, 0.3);
@@ -304,6 +325,14 @@ wall(0, 5.5, 0.3, 3);     // x=0, z 4..7
 wall(-8, 0, 4, 0.3);      // z=0, x -10..-6
 wall(0, 0, 8, 0.3);       // z=0, x -4..4
 wall(8, 0, 4, 0.3);       // z=0, x 6..10
+const wallColliderCount = colliders.length;
+
+/* skirting boards along the outer walls */
+const skirtOpts = { roughness: 0.5, sharp: true };
+addBox(0, -6.96, 20, 0.06, 0.14, 0xded3c0, 0.07, false, skirtOpts);
+addBox(0, 6.96, 20, 0.06, 0.14, 0xded3c0, 0.07, false, skirtOpts);
+addBox(-9.96, 0, 0.06, 14, 0.14, 0xded3c0, 0.07, false, skirtOpts);
+addBox(9.96, 0, 0.06, 14, 0.14, 0xded3c0, 0.07, false, skirtOpts);
 
 /* ---------- windows: bright daylight lightboxes on the outer walls ---------- */
 function windowBox(cx, cy, cz, w, h, facing) {
@@ -322,6 +351,16 @@ function windowBox(cx, cy, cz, w, h, facing) {
   addBox(cx, fz, w, d, f * 0.6, 0xf7f7f2, cy, false, frameMat);      // transom
   /* sill */
   addBox(cx, cz + facing * 0.12, w + 0.3, 0.22, 0.06, 0xefe9dd, cy - h / 2 - f, false, frameMat);
+  /* curtain rod + fabric panels */
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, w + 0.7, 10),
+    new THREE.MeshStandardMaterial({ color: 0x8a6a3c, metalness: 0.6, roughness: 0.35 }));
+  rod.rotation.z = Math.PI / 2;
+  rod.position.set(cx, cy + h / 2 + 0.22, cz + facing * 0.16);
+  scene.add(rod);
+  for (const side of [-1, 1]) {
+    addBox(cx + side * (w / 2 + 0.16), cz + facing * 0.16, 0.34, 0.09, h + 0.5,
+      0x9a5f6e, cy + 0.05, false, { roughness: 0.95 });
+  }
   /* volumetric-style sun shaft angling into the room */
   const shaftLen = 3.6;
   for (const [op, wf] of [[0.055, 1], [0.03, 0.6]]) {
@@ -478,6 +517,27 @@ function plant(cx, cz) {
 plant(-9.4, -6.4);
 plant(9.35, 5.9);
 plant(0.85, -0.85);
+
+/* soft contact shadows under every piece of furniture */
+const blobTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(64, 64, 8, 64, 64, 62);
+  g.addColorStop(0, 'rgba(0,0,0,.42)');
+  g.addColorStop(0.7, 'rgba(0,0,0,.18)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+for (const c of colliders.slice(wallColliderCount)) {
+  const w = (c.maxX - c.minX) + 0.5, d = (c.maxZ - c.minZ) + 0.5;
+  const blob = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.set((c.minX + c.maxX) / 2, 0.02, (c.minZ + c.maxZ) / 2);
+  scene.add(blob);
+}
 
 /* ============================ product sprites ============================ */
 function emojiTexture(emoji, bg = true) {
