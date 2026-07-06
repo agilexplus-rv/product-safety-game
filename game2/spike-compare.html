@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike - Procedural vs CC0 GLTF room comparison</title>
+<style>
+  html,body{margin:0;min-height:100%;background:#0c1120;color:#e6ecff;font-family:system-ui,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;align-items:center}
+  h1{font-size:22px;margin:28px 0 6px;font-weight:600}
+  p.sub{opacity:.8;max-width:680px;text-align:center;margin:0 16px 22px;font-size:14px;line-height:1.5}
+  .row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;margin:0 16px 30px}
+  .card{width:320px;background:rgba(20,28,52,.6);border:1px solid rgba(120,150,210,.25);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .12s,border-color .12s}
+  .card:hover{transform:translateY(-3px);border-color:rgba(159,194,255,.6)}
+  .card .thumb{height:160px;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700;letter-spacing:2px;background:radial-gradient(circle at 50% 40%,#1a2a4e,#0c1120)}
+  .card .body{padding:14px 16px 18px}
+  .card .body h2{font-size:16px;margin:0 0 6px}
+  .card .body p{font-size:12.5px;opacity:.78;margin:0;line-height:1.5}
+  .note{max-width:680px;margin:0 16px 40px;font-size:13px;opacity:.72;line-height:1.6}
+  a.back{color:#9fc2ff;margin:0 16px 24px}
+  code{background:rgba(120,150,210,.15);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+  <h1>Procedural vs CC0 GLTF - living room spike</h1>
+  <p class="sub">Two versions of the same living room from Safety Detective. Open each in a new tab, screenshot both from the same angle, and judge which visual direction to take for the whole house.</p>
+  <div class="row">
+    <a class="card" href="spike-procedural.html" target="_blank" rel="noopener">
+      <div class="thumb">A</div>
+      <div class="body"><h2>Procedural room</h2><p>LatheGeometry / ExtrudeGeometry / TubeGeometry, canvas-generated normal maps, a real PointLight with PCFSoftShadowMap, and a PMREMGenerator + RoomEnvironment env map. No external assets.</p></div>
+    </a>
+    <a class="card" href="spike-gltf.html" target="_blank" rel="noopener">
+      <div class="thumb">B</div>
+      <div class="body"><h2>GLTF room</h2><p>Kenney Furniture Kit 2.0 (CC0) loaded via THREE.GLTFLoader. Same lighting and room shell as the procedural version for a fair comparison.</p></div>
+    </a>
+  </div>
+  <div class="note">
+    <strong>What to look for:</strong> silhouette fidelity of the furniture (turned legs, sofa folds), how the light interacts with the surfaces (reflections on glossy parts, shadow softness), and the loading weight / asset footprint.
+    The procedural room is fully self-contained (zero network fetches beyond the JS). The GLTF room fetches about 9 small GLB files totalling under 500 KB.
+    Asset provenance is documented in <code>game2/SPIKE-ASSET-LICENSES.md</code>.
+  </div>
+  <a class="back" href="index.html">&larr; back to the game</a>
+</body>
+</html>
