@@ -1,6 +1,6 @@
 # Product Safety Games
 
-Two educational browser games about **consumer product safety** — the products we buy in shops and online. Built for an EU/Malta context (CE marking, EU Safety Gate recalls, MCCAA) with a full **English / Maltese** language toggle.
+Two educational browser games about **consumer product safety** — the products we buy in shops and online. Built for an EU/Malta context (CE marking, EU Safety Gate recalls, national market-surveillance authorities) with a full **English / Maltese** language toggle.
 
 | | Game | Ages | Style |
 |---|---|---|---|
